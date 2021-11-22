@@ -25,7 +25,7 @@ def get_next_state(state: Tuple[int, ], action: int) -> Tuple[Tuple[int, ], bool
     return next_state, terminal
 
 
-def init_env(start_pos_fixed: bool, input_dims) -> Tuple[int, ]:
+def init_env(start_pos_fixed: bool, input_dims: int) -> Tuple[int, ]:
     # initialize first state of environment, i.e., position of agent in the maze
     # Randomized for one group of agents (rats) or fixed for another group of agents
     # consider dimension of input: 2D or 3D
