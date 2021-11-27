@@ -4,7 +4,7 @@ https://github.com/philtabor/Youtube-Code-Repository/blob/master/ReinforcementLe
 
 from keras.layers import Dense, Activation
 from keras.models import Sequential, load_model
-from keras.optimizers import Adam
+from tensorflow.keras.optimizers import Adam
 import numpy as np
 import os
 
@@ -145,7 +145,7 @@ def build_DQN(lr: float,
         Dense(fc2_dims),
         Activation('relu'),
         Dense(n_actions)])
-    model.compile(optimizer=Adam(lr=lr), loss='mse')
+    model.compile(optimizer=Adam(learning_rate=lr), loss='mse')
 
     return model
 
@@ -342,3 +342,29 @@ class DDQNAgent(object):
 
         if self.epsilon <= self.epsilon_min:
             self.update_network_parameters()
+
+
+def set_weights_3D_2D(model_2D, model_3D):
+    weights_2D = model_2D.get_weights()
+    weights_3D = model_3D.get_weights()
+
+    # index weights
+    # 0: input to first dense layer
+    # 1: first dense layer to first activation layer
+    # 2: activation layer ot second dense layer
+    # 3: second dense layer to second activation layer
+    # 4: second activation layer ot dense output layer
+    weights_3D[0][0] = weights_2D[0][0]  # weights for y-axis
+    weights_3D[0][1] = weights_3D[0][1]  # weights for x-axis
+    weights_3D[0][2] = np.zeros(256)  # initialize weights for z-axis with zeros
+
+    weights_3D[1] = weights_2D[1]
+    weights_3D[2] = weights_2D[2]
+    weights_3D[3] = weights_2D[3]
+    weights_3D[4][:, :4] = weights_2D[4]   # set the first weights for the first four agents equal
+    #### think about the last layer
+
+    model_3D.set_weights(weights_3D)
+
+    return model_3D
+
