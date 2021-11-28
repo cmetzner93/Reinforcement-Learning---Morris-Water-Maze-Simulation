@@ -16,6 +16,14 @@ def platform(dimensions, size):
     platform = [dim_left, dim_right]
     return (platform)
 
+def smell_range(dimensions, size, spatial_cue):
+    
+    dim_left = (dimensions/2) - (size * spatial_cue)
+    dim_right = (dimensions/2) - ((size - 1) * spatial_cue)
+    
+    smell_range = [dim_left, dim_right]
+    return(smell_range)
+
 
 def get_reward(state: List[int, ], action: int, next_state: List[int, ]) -> float:
     pass
