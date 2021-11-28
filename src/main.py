@@ -9,6 +9,14 @@ import numpy as np
 from src.DDQN import DDQNAgent, set_weights_3D_2D
 from typing import List, Tuple
 
+def platform(dimensions, size):
+    dim_left = (dimensions/2) - size
+    dim_right = (dimensions/2) - (size - 1)
+    
+    platform = [dim_left, dim_right]
+    return (platform)
+
+
 def get_reward(state: List[int, ], action: int, next_state: List[int, ]) -> float:
     pass
 
