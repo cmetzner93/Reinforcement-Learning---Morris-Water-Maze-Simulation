@@ -24,9 +24,158 @@ def smell_range(dimensions, size, spatial_cue):
     smell_range = [dim_left, dim_right]
     return(smell_range)
 
+def center_location(platform: List[int]) -> int:
+    """
+    Parameters
+    ----------
+    platform : List[int]
+       Input of the lower and upper limits of the platform
 
-def get_reward(state: List[int, ], action: int, next_state: List[int, ]) -> float:
-    pass
+    Returns
+    -------
+    center_loc : int
+        A single point location for the center of the cube/platorm
+    """
+    center = (platform[1] - platform[0]) / 2
+    return center
+
+
+def manhatten_dis_center(state: List[int], center: int) -> float:
+    """
+    Parameters
+    ----------
+    state : List[int]
+        The location of the state given by [row, column, z]
+    center : int
+        The center of the platform or cube
+
+    Returns
+    -------
+    man_dis : float 
+        The manhatten distance from the current state location and the
+        center of the cube (3-D) or platform (2-D)
+    """
+    
+    # iterator
+    i = 0
+    # manhatten distance total
+    man_dis = 0
+    while i < len(state):
+        man_dis = man_dis + abs(state[i] - center)
+        
+        # iterate
+        i = i + 1
+    return man_dis
+
+
+def get_reward(state: List[int], next_state: List[int], platform: List[int], smell_range: List[int], Rewards: List[float]) -> (float, List[float]):
+    """
+    Parameters
+    ----------
+    state : List[int]
+        The location of the state given by [row, column] or [row, column, z]
+    next_state : List[int]
+        The location of the next state given by [row, column] or [row, column, z]
+    platform : List[int]
+        Input of the lower and upper limits of the platform
+    smell_range : List[int]
+        The lower and upper limits of the smell range
+    Rewards : List[float]
+        A list of rewards that get updated after every step taken
+        Rewards[0] = R_move
+            starting value = -0.01
+        Rewards[1] = R_close_cheese
+            starting value = +2
+    Returns
+    -------
+    Reward : float
+        Returns the reward value
+    Rewards : List[float]
+        Returns an updated list of rewards for every step taken
+        Rewards[0] = R_move
+            starting value = -0.01
+        Rewards[1] = R_close cheese
+            starting value = +2
+    """
+    
+    # update R_move == Rewards[0]
+    Rewards[0] = Rewards[0] - 0.01
+    
+    
+    # check for 2-D and for 3-D
+    if (len(state) == 2):
+        #################### 2-Dimensional######################
+        # check to see if next_state is in the terminal location
+        if (platform[0] <= next_state[0] <= platform[1]): # check to see if we are in the y (rows) of the platform
+            if (platform[0] <= next_state[1] <= platform[1]): # check to see if we are in the x (columns) of the platform
+                    return 100 # reward for getting to the platform
+    
+        # check to see if the next_state is in the smell range
+        elif (smell_range[0] <= next_state[0] <= smell_range[1]): # check to see if we are in the y (rows) of the smell_range
+            if (smell_range[0] <= next_state[1] <= smell_range[1]): # check to see if we are in the x (columns) of the smell_range
+                    center = center_location(platform)
+                    
+                    # calculating manahtten distances
+                    state_dis = manhatten_dis_center(state, center)
+                    next_state_dis = manhatten_dis_center(next_state, center)
+                    
+                    # check to see if manhatten distance is smaller
+                    if (next_state_dis < state_dis):
+                        # update the R_close_cheese value
+                        Rewards[1] = Rewards[1] + 2
+                        return Rewards[1] + Rewards[0], Rewards
+                    # check to see if manhatten distance is larger
+                    elif (next_state_dis > state_dis):
+                        # update the R_close_cheese_value
+                        Rewards[1] = Rewards[1] - 2
+                        # Rewards[0] here since we are moving away from the platform
+                        return Rewards[0], Rewards
+                    else:
+                        return Rewards[1] + Rewards[0], Rewards
+        else:
+            # if not in the cube or in the smell range
+            # the reward is just for swimming
+            return Rewards[0], Rewards
+        
+        
+    else:
+        #################### 3-Dimensional######################
+        # check to see if next_state is in the terminal location
+        if (platform[0] <= next_state[0] <= platform[1]): # check to see if we are in the y (rows) of the platform/cube
+            if (platform[0] <= next_state[1] <= platform[1]): # check to see if we are in the x (columns) of the platform/cube
+                if(platform[0] <= next_state[2] <= platform[1]): # check to see if we are in the z-depth of the platform/cube
+                    return 100 # reward for getting to the cube or the platform
+    
+        # check to see if the next_state is in the smell range
+        elif (smell_range[0] <= next_state[0] <= smell_range[1]): # check to see if we are in the y (rows) of the smell_range
+            if (smell_range[0] <= next_state[1] <= smell_range[1]): # check to see if we are in the x (columns) of the smell_range
+                if(smell_range[0] <= next_state[2] <= smell_range[1]): # check to see if we are in the z-depth of the smell_range
+                    # reward for getting in the smell range and it increases with subsequent closeness to the platform
+                    
+                    # calc the center
+                    center = center_location(platform)
+                    
+                    # calculating manahtten distances
+                    state_dis = manhatten_dis_center(state, center)
+                    next_state_dis = manhatten_dis_center(next_state, center)
+                    
+                    # check to see if manhatten distance is smaller
+                    if (next_state_dis < state_dis):
+                        # update the R_close_cheese value
+                        Rewards[1] = Rewards[1] + 2
+                        return Rewards[1] + Rewards[0], Rewards
+                    # check to see if manhatten distance is larger
+                    elif (next_state_dis > state_dis):
+                        # update the R_close_cheese_value
+                        Rewards[1] = Rewards[1] - 2
+                        # Rewards[0] here since we are moving away from the cube
+                        return Rewards[0], Rewards
+                    else:
+                        return Rewards[1] + Rewards[0], Rewards
+        else:
+            # if not in the cube or in the smell range
+            # the rewards is just for swimming
+            return Rewards[0], Rewards
 
 
 def get_next_state(state: List[int, ], action: int, dim: int, pos_pf: List[int]) -> Tuple[List[int, ]]:
