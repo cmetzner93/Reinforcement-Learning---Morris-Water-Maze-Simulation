@@ -83,7 +83,7 @@ def get_reward(state: List[int], next_state: List[int], platform: List[int], sme
     Rewards : List[float]
         A list of rewards that get updated after every step taken
         Rewards[0] = R_move
-            starting value = -0.01
+            starting value = 0
         Rewards[1] = R_close_cheese
             starting value = +2
     Returns
@@ -93,7 +93,7 @@ def get_reward(state: List[int], next_state: List[int], platform: List[int], sme
     Rewards : List[float]
         Returns an updated list of rewards for every step taken
         Rewards[0] = R_move
-            starting value = -0.01
+            starting value = 0
         Rewards[1] = R_close cheese
             starting value = +2
     """
