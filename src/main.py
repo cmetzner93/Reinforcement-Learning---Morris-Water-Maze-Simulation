@@ -12,9 +12,9 @@ import numpy as np
 from DDQN import DDQNAgent, set_weights_3D_2D
 from typing import List, Tuple, Union
 from typing import TypeVar
-
+import matplotlib.pyplot as plt
+import pickle
 keras_sequential_model = TypeVar('keras.engine.sequential.Sequential')
-
 
 def platform(dimensions, size):
     dim_left = (dimensions/2) - size
@@ -150,22 +150,15 @@ def get_reward(state: List[int], next_state: List[int], platform: List[int], sme
     #################### 3-Dimensional######################
     elif len(state) == 3:
         # check to see if next_state is in the terminal location
-        if (platform[0] <= next_state[0] <= platform[1]):  # check to see if we are in the y (rows) of the platform/cube
-            if (platform[0] <= next_state[1] <= platform[
-                1]):  # check to see if we are in the x (columns) of the platform/cube
-                if (platform[0] <= next_state[2] <= platform[
-                    1]):  # check to see if we are in the z-depth of the platform/cube
-                    return 100  # reward for getting to the cube or the platform
+        if platform[0] <= next_state[0] <= platform[1] \
+            and platform[0] <= next_state[1] <= platform[1] \
+            and platform[0] <= next_state[2] <= platform[1]:
+                return 100, Rewards  # reward for getting to the cube or the platform
 
         # check to see if the next_state is in the smell range
-        elif (smell_range[0] <= next_state[0] <= smell_range[
-            1]):  # check to see if we are in the y (rows) of the smell_range
-            if (smell_range[0] <= next_state[1] <= smell_range[
-                1]):  # check to see if we are in the x (columns) of the smell_range
-                if (smell_range[0] <= next_state[2] <= smell_range[
-                    1]):  # check to see if we are in the z-depth of the smell_range
-                    # reward for getting in the smell range and it increases with subsequent closeness to the platform
-
+        elif smell_range[0] <= next_state[0] <= smell_range[1] \
+                and smell_range[0] <= next_state[1] <= smell_range[1] \
+                and smell_range[0] <= next_state[2] <= smell_range[1]:
                     # calc the center
                     center = center_location(platform)
 
@@ -174,12 +167,12 @@ def get_reward(state: List[int], next_state: List[int], platform: List[int], sme
                     next_state_dis = manhatten_dis_center(next_state, center)
 
                     # check to see if manhatten distance is smaller
-                    if (next_state_dis < state_dis):
+                    if next_state_dis < state_dis:
                         # update the R_close_cheese value
                         Rewards[1] = Rewards[1] + 2
                         return Rewards[1] + Rewards[0], Rewards
                     # check to see if manhatten distance is larger
-                    elif (next_state_dis > state_dis):
+                    elif next_state_dis > state_dis:
                         # update the R_close_cheese_value
                         Rewards[1] = Rewards[1] - 2
                         # Rewards[0] here since we are moving away from the cube
@@ -332,17 +325,23 @@ def init_starting_state(input_dim: int, maze_dim: int, start_state: List[int]) -
     return state
 
 
-def init_ddqn_agent(input_dims: int) -> keras_sequential_model:
+def init_ddqn_agent(input_dims: int, start_state: Tuple[List[int], bool]) -> keras_sequential_model:
     """
     Function to initialize double deep Q-learning agent.
     Parameters
     ----------
     input_dims: int
+    start_state: Tuple[List[int], bool]
 
     Returns
     -------
 
     """
+    print(start_state)
+    if start_state is not None:
+        start_s = 'fixed'
+    else:
+        start_s = 'random'
     if input_dims == 2:
         ddqn_agent = DDQNAgent(alpha=0.0005,
                                gamma=0.99,
@@ -350,10 +349,10 @@ def init_ddqn_agent(input_dims: int) -> keras_sequential_model:
                                epsilon=1.0,
                                batch_size=64,
                                input_dims=input_dims,
-                               fname='ddqn_model_2D.h5')
+                               fname=f'ddqn_model_2D_{start_s}.h5')
 
     elif input_dims == 3:  # init ddqn_agent in 3D with the x and y weights of the 2D agent
-        ddqn_agent2D = keras.models.load_model('ddqn_model_2D.h5')
+        ddqn_agent2D = keras.models.load_model(f'ddqn_model_2D_{start_s}.h5')
 
         ddqn_agent = DDQNAgent(alpha=0.0005,
                                gamma=0.99,
@@ -361,11 +360,11 @@ def init_ddqn_agent(input_dims: int) -> keras_sequential_model:
                                epsilon=1.0,
                                batch_size=64,
                                input_dims=input_dims,
-                               fname='ddqn_model_3D.h5')
+                               fname=f'ddqn_model_3D_{start_s}.h5')
 
         # Setting the weights of agent trained in 2D equal to the untrained weights of agent in 3D
-        ddqn_agent.q_val = set_weights_3D_2D(ddqn_agent2D.q_eval, ddqn_agent.q_eval)
-        ddqn_agent.q_target = set_weights_3D_2D(ddqn_agent2D.q_target, ddqn_agent.q_target)
+        ddqn_agent.q_val = set_weights_3D_2D(ddqn_agent2D, ddqn_agent.q_eval)
+        ddqn_agent.q_target = set_weights_3D_2D(ddqn_agent2D, ddqn_agent.q_target)
 
     return ddqn_agent
 
@@ -405,17 +404,18 @@ def execute_learning(
     """
 
     # init DDQN-Agent
-    ddqn_agent = init_ddqn_agent(input_dims=input_dim)
+    ddqn_agent = init_ddqn_agent(input_dims=input_dim, start_state=start_state)
 
     # init empty lists to store results - expected returns and history of epsilon
     G_history = []
     eps_history = []
+    states_visited = []
 
     pos_pf = platform(dimensions=maze_dim, size=size_pf)
     pos_smell = smell_range(dimensions=maze_dim, size=size_pf, spatial_cue=spatial_cues)
 
     for episode in range(n):
-        max_iterCnt = 1000
+        max_iterCnt = 100
         terminal = False  # set terminal flag to false, to indicate that agent is not a terminal state
         iterCnt = 0
         G = 0  # set expected return to zero
@@ -424,6 +424,7 @@ def execute_learning(
         # two groups of agents: 1) fixed starting point and 2) random starting point
         state = init_starting_state(input_dim=input_dim, maze_dim=maze_dim, start_state=start_state)
         Rewards = [0, 0]
+        states_visited_episode = []
         while not terminal and iterCnt < max_iterCnt:
             print(f'Current Move: {iterCnt}')
             action = ddqn_agent.choose_action(state=state)
@@ -433,6 +434,8 @@ def execute_learning(
                 action=action,
                 maze_dim=maze_dim,
                 pos_pf=pos_pf)
+
+            states_visited_episode.append(next_state)
 
             reward, Rewards = get_reward(
                 state=state,
@@ -463,10 +466,29 @@ def execute_learning(
         print(f'Episode {episode+1}, G: {G}, Average G: {avg_G}')
 
         # save model
-        if episode % 10 == 0 and episode > 0:
+        if episode % 1 == 0 and episode > 0:
             ddqn_agent.save_model()
 
-    return G_history, eps_history
+    states_visited.append(states_visited_episode)
+
+    return G_history, eps_history, states_visited
+
+
+def plot_total_returns(total_returns: List[int], exp_num: int):
+    x = np.linspace(1, len(total_returns), len(total_returns))
+
+    plt.figure(figsize=(10, 8))
+
+    plt.plot(x, total_returns)
+    plt.title(f'Total Return vs Epoch')
+    plt.xlabel('Epochs', fontsize=14)
+    plt.ylabel('Total Return per Epoch', fontsize=14)
+    plt.xticks(fontsize=12)
+    plt.yticks(fontsize=12)
+
+    plt.legend(fontsize=12)
+
+    plt.savefig(f'Total Return vs Epoch {exp_num}.png')
 
 
 def main(argv):
@@ -475,17 +497,36 @@ def main(argv):
     maze_dims = int(argv[3])  # input dimensions of squared or cubed environment - default 128
     size_pf = int(argv[4])  # size of platform where goal is
     spatial_cues = int(argv[5])  # smell range surrounding platform - factor of it
+    fix_starting_state = int(argv[6])  # if 0: fixed elif 1: random
 
-    G_history, eps_history = execute_learning(
+    if fix_starting_state == 0:
+        if input_dims == 2:
+            start_state = [0, 0]
+        elif input_dims == 3:
+            start_state = [0, 0, 0]
+
+    elif fix_starting_state == 1:
+        start_state = None
+
+    print(start_state)
+
+    G_history, eps_history, states_visited = execute_learning(
         input_dim=input_dims,
         maze_dim=maze_dims,
         n=n,
         size_pf=size_pf,
         spatial_cues=spatial_cues,
-        start_state=None)  # or list for 2D [y_pos, x_pos] and 3D [y_pos, x_pos, z_pos]
+        start_state=start_state)  # or list for 2D [y_pos, x_pos] and 3D [y_pos, x_pos, z_pos]
 
-    # We can plot the two returned variables above.
+    # save results for later use with pickle
+    with open(f'results_expected_return_{argv[2]}_{argv[6]}.pkl', 'wb') as pickle_g:
+        pickle.dump(G_history, pickle_g)
 
+    with open(f'results_eps_{argv[2]}_{argv[6]}.pkl', 'wb') as pickle_eps:
+        pickle.dump(G_history, pickle_eps)
+
+    with open(f'results_states_visited_{argv[2]}_{argv[6]}.pkl', 'wb') as pickle_states_visited:
+        pickle.dump(G_history, pickle_states_visited)
 
 if __name__ == '__main__':
     main(sys.argv)
