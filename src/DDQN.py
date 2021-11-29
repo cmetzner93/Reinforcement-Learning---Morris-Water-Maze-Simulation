@@ -8,7 +8,7 @@ from tensorflow.keras.optimizers import Adam
 import numpy as np
 import os
 
-from typing import Tuple
+from typing import List, Tuple
 
 
 class ReplayBuffer(object):
@@ -16,7 +16,7 @@ class ReplayBuffer(object):
     Class object that stores the transitions
     """
 
-    def __init__(self, max_size: int, input_shape: Tuple[int,], n_actions: int):
+    def __init__(self, max_size: int, input_shape: List[int], n_actions: int):
         """
         Initialize ReplayBuffer object with maximum memory size, shape of input, and number of possible actions.
 
@@ -24,7 +24,7 @@ class ReplayBuffer(object):
         ----------
         max_size: int
             Number indicating maximum size of memory, i.e,. maximum number of transitions stored in memory to learn from
-        input_shape:
+        input_shape: List[int]
             Shape of state input of our environment
         n_actions: int
             Number of actions the agent could select in the environment/state
@@ -42,10 +42,10 @@ class ReplayBuffer(object):
         self.terminal_memory = np.zeros(self.memory_size, dtype=np.float32)
 
     def store_transition(self,
-                         state: Tuple[int],
+                         state: List[int],
                          action: int,
                          reward: float,
-                         next_state: Tuple[int],
+                         next_state: List[int],
                          terminal: bool):
         """
         Function that stores the most recently visited transition (state, action, reward, next_stat) and whether next
@@ -68,12 +68,16 @@ class ReplayBuffer(object):
         index = self.memory_cntr % self.memory_size  # used to keep memory finite; % used to identify current index
         self.state_memory[index] = state  # store state at current index of memory
         self.next_state_memory[index] = next_state  # store next state at current index memory
-        self.action_memory[index] = action  # store selected at current index memory
+
+        # one-hot-encoding for discrete actions
+        actions = np.zeros(self.action_memory.shape[1])
+        actions[action] = 1.0
+        self.action_memory[index] = actions  # store selected at current index memory
         self.reward_memory[index] = reward  # store received reward at current index memory
 
         # If terminal == true --> The action-value of terminal state is 0, however, int(terminal=true) == 1, therefore,
         # we need to subtract 1 - int(terminal) to make sure that we actually multiply the update by 0 (Updating Q!).
-        self.terminal_memory[index] = 1 - int(terminal)  # store if next state was terminal or not
+        self.terminal_memory[index] = 1 - terminal  # store if next state was terminal or not
         self.memory_cntr += 1
 
     def sample_buffer(self, batch_size: int) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
@@ -115,7 +119,7 @@ class ReplayBuffer(object):
 
 def build_DQN(lr: float,
               n_actions: int,
-              input_dims: Tuple[int,],
+              input_dims: List[int],
               fc1_dims: int,
               fc2_dims: int) -> Sequential:
     """
@@ -127,7 +131,7 @@ def build_DQN(lr: float,
         Learning rate of the selected optimizer
     n_actions: int
         Number of actions the agent could select in the environment/state
-    input_dims: Tuple[int, ]
+    input_dims: List[int]
         Shape of state input of our environment
     fc1_dims: int
         Number of nodes in first fully connected layer
@@ -161,7 +165,7 @@ class DDQNAgent(object):
                  fname: str,
                  epsilon_dec: float = 0.996,
                  epsilon_min: float = 0.01,
-                 memory_size: int = 100000,
+                 memory_size: int = 1000000,
                  replace_target: int = 100):
 
         """
@@ -224,24 +228,24 @@ class DDQNAgent(object):
             fc2_dims=256)
 
     def remember(self,
-                 state: Tuple[int, ],
+                 state: List[int],
                  action: int,
                  reward: float,
-                 next_state: Tuple[int, ],
+                 next_state: List[int],
                  terminal: bool):
         """
         Function that stores the visited transitions in the memory buffer.
 
         Parameters
         ----------
-        state: Tuple[int]
-            A tuple containing the x,y,z-positions of the agent (2D: x and y / 3D: x, y, and z) as the state
+        state: List[int]
+            A list containing the x,y,z-positions of the agent (2D: x and y / 3D: x, y, and z) as the state
         action: int
             Integer indicating which action was selected
         reward: float
             Received reward for state-action-pair
-        next_state: Tuple[int]
-            A tuple containing the x, y, and z-positions of the agent as the next state of the environment (2D: x and y /
+        next_state: List[int]
+            A list containing the x, y, and z-positions of the agent as the next state of the environment (2D: x and y /
             3D: x, y, and z)
         terminal: bool
             A boolean expression that indicates whether the next state was terminal or not
@@ -250,20 +254,20 @@ class DDQNAgent(object):
         # store transition in memory
         self.memory.store_transition(state, action, reward, next_state, terminal)
 
-    def choose_action(self, state: Tuple[int, ]) -> int:
+    def choose_action(self, state: List[int]) -> int:
         """
 
         Parameters
         ----------
-        state: Tuple[int, ]
-            A tuple containing the x,y,z-positions of the agent (2D: x and y / 3D: x, y, and z) as the state
+        state: List[int]
+            A list containing the x,y,z-positions of the agent (2D: x and y / 3D: x, y, and z) as the state
 
         Returns
         -------
         int
             selected action for given state
         """
-        state = state[np.newaxis, :]
+        state = np.array(state)[np.newaxis]
         rand = np.random.random()  # select from uniform distribution
         # if random below epsilon do exploration else do exploitation
         if rand < self.epsilon:  # do exploration
@@ -280,16 +284,16 @@ class DDQNAgent(object):
         if self.memory.memory_cntr > self.batch_size:
             states, actions, rewards, next_states, terminals = self.memory.sample_buffer(self.batch_size)
 
-            # action_values = np.array(self.action_space, dtype=np.int8)
-            # action_indices = np.dot(actions, action_values)
+            action_values = np.array(self.action_space, dtype=np.int8)
+            action_indices = np.dot(actions, action_values)
 
             # The following code handles the updating
             # Get Q-value for target network: Q(s', argmax a Q(s', a; Phi(t)); Phi(t-))
             # Step 1: Compute all possible q-values using target network
-            q_next = self.q_target.predict(new_states)
+            q_next = self.q_target.predict(next_states)
 
             # Step 2: Compute all possible q-values for Q(s', a; Phi(t)) using evaluation network
-            q_eval = self.q_eval.predict(new_states)
+            q_eval = self.q_eval.predict(next_states)
 
             # Step 3: Select actions that maximize q-values for all transitions in batch
             max_actions = np.argmax(q_eval, axis=1)
@@ -307,9 +311,9 @@ class DDQNAgent(object):
 
             # Step 7: Compute the TD-Target for all transitions in batch
             # TD-Target: Y_t^DDQN = R_t+1 + gamma * (Q(S_t+1, argmax_a, a; w_t), w_t-)
-            q_target[batch_index, actions] = reward \
+            q_target[batch_index, action_indices] = rewards \
                                                     + self.gamma * q_next[
-                                                        batch_index, max_actions.astype(int)] * terminal
+                                                        batch_index, max_actions.astype(int)] * terminals
 
             # Step 8: Update Weights in evaluation network
             # Phi(t+1) = Phi(t) + alpha(TD-Target - Q(S_t, A_t, Phi(t))*GradientPhi(t)Q(S_t, A_t, Phi_t)
@@ -326,7 +330,7 @@ class DDQNAgent(object):
         """
         Function that sets weights of target network equal to weights of evaluation network.
         """
-        self.q_target.model.set_weights(self.q_eval.model.get_weights())
+        self.q_target.set_weights(self.q_eval.get_weights())
 
     def save_model(self):
         """

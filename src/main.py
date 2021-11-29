@@ -1,20 +1,28 @@
 """
 Title: Source code for double deep Q-learning using Pytorch and torchvision.
-Author: Christoph Metzner
+Author: Christoph Metzner and Andrew Strick
+Date: 11/28/2021
+
+This is the main source code for running the morris water maze experiment.
 """
 
 import sys
 import keras
 import numpy as np
-from src.DDQN import DDQNAgent, set_weights_3D_2D
-from typing import List, Tuple
+from DDQN import DDQNAgent, set_weights_3D_2D
+from typing import List, Tuple, Union
+from typing import TypeVar
+
+keras_sequential_model = TypeVar('keras.engine.sequential.Sequential')
+
 
 def platform(dimensions, size):
     dim_left = (dimensions/2) - size
     dim_right = (dimensions/2) - (size - 1)
     
     platform = [dim_left, dim_right]
-    return (platform)
+    return platform
+
 
 def smell_range(dimensions, size, spatial_cue):
     
@@ -22,7 +30,8 @@ def smell_range(dimensions, size, spatial_cue):
     dim_right = (dimensions/2) - ((size - 1) * spatial_cue)
     
     smell_range = [dim_left, dim_right]
-    return(smell_range)
+    return smell_range
+
 
 def center_location(platform: List[int]) -> int:
     """
@@ -68,7 +77,8 @@ def manhatten_dis_center(state: List[int], center: int) -> float:
     return man_dis
 
 
-def get_reward(state: List[int], next_state: List[int], platform: List[int], smell_range: List[int], Rewards: List[float]) -> (float, List[float]):
+def get_reward(state: List[int], next_state: List[int], platform: List[int], smell_range: List[int],
+               Rewards: List[float]) -> (float, List[float]):
     """
     Parameters
     ----------
@@ -97,68 +107,72 @@ def get_reward(state: List[int], next_state: List[int], platform: List[int], sme
         Rewards[1] = R_close cheese
             starting value = +2
     """
-    
+
     # update R_move == Rewards[0]
     Rewards[0] = Rewards[0] - 0.01
-    
-    
+
     # check for 2-D and for 3-D
-    if (len(state) == 2):
-        #################### 2-Dimensional######################
+
+    #################### 2-Dimensional######################
+    if len(state) == 2:
         # check to see if next_state is in the terminal location
-        if (platform[0] <= next_state[0] <= platform[1]): # check to see if we are in the y (rows) of the platform
-            if (platform[0] <= next_state[1] <= platform[1]): # check to see if we are in the x (columns) of the platform
-                    return 100 # reward for getting to the platform
-    
+        #  checks if agent is in y range                    checks if agent is in x range
+        if platform[0] <= next_state[0] <= platform[1] and platform[0] <= next_state[1] <= platform[1]:
+            return 100 + Rewards[0], Rewards  # reward for getting to the platform
+
         # check to see if the next_state is in the smell range
-        elif (smell_range[0] <= next_state[0] <= smell_range[1]): # check to see if we are in the y (rows) of the smell_range
-            if (smell_range[0] <= next_state[1] <= smell_range[1]): # check to see if we are in the x (columns) of the smell_range
-                    center = center_location(platform)
-                    
-                    # calculating manahtten distances
-                    state_dis = manhatten_dis_center(state, center)
-                    next_state_dis = manhatten_dis_center(next_state, center)
-                    
-                    # check to see if manhatten distance is smaller
-                    if (next_state_dis < state_dis):
-                        # update the R_close_cheese value
-                        Rewards[1] = Rewards[1] + 2
-                        return Rewards[1] + Rewards[0], Rewards
-                    # check to see if manhatten distance is larger
-                    elif (next_state_dis > state_dis):
-                        # update the R_close_cheese_value
-                        Rewards[1] = Rewards[1] - 2
-                        # Rewards[0] here since we are moving away from the platform
-                        return Rewards[0], Rewards
-                    else:
-                        return Rewards[1] + Rewards[0], Rewards
+        # check if agent is in y range                              check if agent is in x range
+        elif smell_range[0] <= next_state[0] <= smell_range[1] and smell_range[0] <= next_state[1] <= smell_range[1]:
+                center = center_location(platform)
+
+                # calculating manhatten distances
+                state_dis = manhatten_dis_center(state, center)
+                next_state_dis = manhatten_dis_center(next_state, center)
+
+                # check to see if manhatten distance is smaller
+                if next_state_dis < state_dis:
+                    # update the R_close_cheese value
+                    Rewards[1] = Rewards[1] + 2
+                    return Rewards[0] + Rewards[1], Rewards
+                # check to see if manhatten distance is larger
+                elif next_state_dis > state_dis:
+                    # update the R_close_cheese_value
+                    Rewards[1] = Rewards[1] - 2
+                    # Rewards[0] here since we are moving away from the platform
+                    return Rewards[0] + Rewards[1], Rewards
+                elif next_state_dis == state_dis:
+                    return Rewards[0] + Rewards[1], Rewards
         else:
             # if not in the cube or in the smell range
             # the reward is just for swimming
             return Rewards[0], Rewards
-        
-        
-    else:
-        #################### 3-Dimensional######################
+
+    #################### 3-Dimensional######################
+    elif len(state) == 3:
         # check to see if next_state is in the terminal location
-        if (platform[0] <= next_state[0] <= platform[1]): # check to see if we are in the y (rows) of the platform/cube
-            if (platform[0] <= next_state[1] <= platform[1]): # check to see if we are in the x (columns) of the platform/cube
-                if(platform[0] <= next_state[2] <= platform[1]): # check to see if we are in the z-depth of the platform/cube
-                    return 100 # reward for getting to the cube or the platform
-    
+        if (platform[0] <= next_state[0] <= platform[1]):  # check to see if we are in the y (rows) of the platform/cube
+            if (platform[0] <= next_state[1] <= platform[
+                1]):  # check to see if we are in the x (columns) of the platform/cube
+                if (platform[0] <= next_state[2] <= platform[
+                    1]):  # check to see if we are in the z-depth of the platform/cube
+                    return 100  # reward for getting to the cube or the platform
+
         # check to see if the next_state is in the smell range
-        elif (smell_range[0] <= next_state[0] <= smell_range[1]): # check to see if we are in the y (rows) of the smell_range
-            if (smell_range[0] <= next_state[1] <= smell_range[1]): # check to see if we are in the x (columns) of the smell_range
-                if(smell_range[0] <= next_state[2] <= smell_range[1]): # check to see if we are in the z-depth of the smell_range
+        elif (smell_range[0] <= next_state[0] <= smell_range[
+            1]):  # check to see if we are in the y (rows) of the smell_range
+            if (smell_range[0] <= next_state[1] <= smell_range[
+                1]):  # check to see if we are in the x (columns) of the smell_range
+                if (smell_range[0] <= next_state[2] <= smell_range[
+                    1]):  # check to see if we are in the z-depth of the smell_range
                     # reward for getting in the smell range and it increases with subsequent closeness to the platform
-                    
+
                     # calc the center
                     center = center_location(platform)
-                    
+
                     # calculating manahtten distances
                     state_dis = manhatten_dis_center(state, center)
                     next_state_dis = manhatten_dis_center(next_state, center)
-                    
+
                     # check to see if manhatten distance is smaller
                     if (next_state_dis < state_dis):
                         # update the R_close_cheese value
@@ -178,9 +192,13 @@ def get_reward(state: List[int], next_state: List[int], platform: List[int], sme
             return Rewards[0], Rewards
 
 
-def get_next_state(state: List[int, ], action: int, dim: int, pos_pf: List[int]) -> Tuple[List[int, ]]:
+def get_next_state(
+        state: List[int],
+        action: int,
+        maze_dim: int,
+        pos_pf: List[int]) -> Tuple[List[int], bool]:
     """
-
+    Function that computes the next state (i.e., position of the agent) given current state and action of agent.
     Parameters
     ----------
     state: List[int]
@@ -189,8 +207,8 @@ def get_next_state(state: List[int, ], action: int, dim: int, pos_pf: List[int])
         The choice the agent made in the direction to move
         2D has 4 actions (north: 0, south: 1, east: 2, west: 3)
         3D has 6 actions (north: 0, south: 1, east: 2, west: 3, up: 4, down: 5)
-    dim: int
-        Length of the dimensions for the square grid
+    maze_dim: int
+        Length of the dimensions for the square or cubed environment
     pos_pf: List[int]
         containing the corner positions of the platform
 
@@ -209,14 +227,14 @@ def get_next_state(state: List[int, ], action: int, dim: int, pos_pf: List[int])
 
     # move South (aka down or down a row on the grid)
     elif action == 1:
-        if state[0] == dim - 1:
+        if state[0] == maze_dim - 1:
             return state, False
         else:
             next_state[0] = state[0] + 1
 
     # move East (aka right or right a column on the grid)
     elif action == 2:
-        if state[1] == dim - 1:
+        if state[1] == maze_dim - 1:
             return state, False
         else:
             next_state[1] = state[1] + 1
@@ -237,7 +255,7 @@ def get_next_state(state: List[int, ], action: int, dim: int, pos_pf: List[int])
 
     # move down into the pool (aka down in the cube)
     elif action == 5:
-        if state[2] == dim - 1:
+        if state[2] == maze_dim - 1:
             return state, False
         else:
             next_state[2] = state[2] + 1
@@ -268,9 +286,6 @@ def get_terminal(next_state: List[int], pos_pf: List[int]) -> bool:
     pos_x_agent = next_state[0]
     pos_y_agent = next_state[1]
 
-    if len(next_state) == 3:
-        pos_z_agent = next_state[2]
-
     # The following if-statement structure checks whether the agent is indeed on the platform and found the goal(cheese)
     # Description: 2D                 3D adding z-axis
     # x1y2  --------- x2y2              ---------
@@ -279,43 +294,36 @@ def get_terminal(next_state: List[int], pos_pf: List[int]) -> bool:
     #       |       |                   |       |
     # x1y1  --------- x2y1        x1y1z1--------- x1y1z2
 
-    # Check whether 2D or 3D platform:
-    pos_x1_pf = pos_pf[0]
-    pos_x2_pf = pos_pf[1]
-    pos_y1_pf = pos_pf[2]
-    pos_y2_pf = pos_pf[3]
-
-    if len(pos_pf) == 4:
-        if pos_x1_pf <= pos_x_agent <= pos_x2_pf and pos_y1_pf <= pos_y_agent <= pos_y2_pf:
+    if len(next_state) == 2:
+        if pos_pf[0] <= pos_x_agent <= pos_pf[1] and pos_pf[0] <= pos_y_agent <= pos_pf[1]:
             return True
         else:
             return False
 
-    elif len(pos_pf) == 6:
-        pos_z1_pf = pos_pf[4]
-        pos_z2_pf = pos_pf[5]
-        if pos_x1_pf <= pos_x_agent <= pos_x2_pf \
-                and pos_y1_pf <= pos_y_agent <= pos_y2_pf \
-                and pos_z1_pf <= pos_z_agent <= pos_z2_pf:
+    elif len(next_state) == 3:
+        pos_z_agent = next_state[2]
+        if pos_pf[0] <= pos_x_agent <= pos_pf[1] \
+                and pos_pf[0] <= pos_y_agent <= pos_pf[1] \
+                and pos_pf[0] <= pos_z_agent <= pos_pf[1]:
             return True
         else:
             return False
 
 
-def init_env(input_dims: int, dim2: bool, start_state: List[int] = None) -> Tuple[int, ]:
+def init_starting_state(input_dim: int, maze_dim: int, start_state: List[int]) -> List[int]:
     # initialize first state of environment, i.e., position of agent in the maze
     # Randomized for one group of agents (rats) or fixed for another group of agents
     # consider dimension of input: 2D or 3D
     if start_state is None:
 
         # Here select a starting position that is random in maze
-        x = np.random.randint(0, input_dims, 1)
-        y = np.random.randint(0, input_dims, 1)
-        z = np.random.randint(0, input_dims, 1)
+        x = np.random.randint(0, maze_dim)
+        y = np.random.randint(0, maze_dim)
+        z = np.random.randint(0, maze_dim)
 
-        if dim2:
+        if input_dim == 2:
             state = [x, y]
-        else:
+        elif input_dim == 3:
             state = [x, y, z]
 
         # Here select a starting position in maze that is fixed
@@ -324,27 +332,32 @@ def init_env(input_dims: int, dim2: bool, start_state: List[int] = None) -> Tupl
     return state
 
 
-def execute_learning(input_dims, n, dim2=True, start_state = None):
-    terminal = False
-    max_iterCnt = 1000
-    iterCnt = 0
+def init_ddqn_agent(input_dims: int) -> keras_sequential_model:
+    """
+    Function to initialize double deep Q-learning agent.
+    Parameters
+    ----------
+    input_dims: int
 
-    # init agent:
-    if dim2:
+    Returns
+    -------
+
+    """
+    if input_dims == 2:
         ddqn_agent = DDQNAgent(alpha=0.0005,
                                gamma=0.99,
-                               n_actions=8,
+                               n_actions=4,
                                epsilon=1.0,
                                batch_size=64,
                                input_dims=input_dims,
                                fname='ddqn_model_2D.h5')
 
-    else:  # init ddqn_agent in 3D with the x and y weights of the 2D agent
+    elif input_dims == 3:  # init ddqn_agent in 3D with the x and y weights of the 2D agent
         ddqn_agent2D = keras.models.load_model('ddqn_model_2D.h5')
 
         ddqn_agent = DDQNAgent(alpha=0.0005,
                                gamma=0.99,
-                               n_actions=26,
+                               n_actions=6,
                                epsilon=1.0,
                                batch_size=64,
                                input_dims=input_dims,
@@ -354,30 +367,94 @@ def execute_learning(input_dims, n, dim2=True, start_state = None):
         ddqn_agent.q_val = set_weights_3D_2D(ddqn_agent2D.q_eval, ddqn_agent.q_eval)
         ddqn_agent.q_target = set_weights_3D_2D(ddqn_agent2D.q_target, ddqn_agent.q_target)
 
+    return ddqn_agent
+
+
+def execute_learning(
+        input_dim: int,
+        maze_dim: int,
+        n: int,
+        size_pf: int,
+        spatial_cues: int,
+        start_state: Union[List[int], None]) -> Tuple[List[float], List[float]]:
+
+    """
+    Function that executes learning of agent in environment.
+
+    Parameters
+    ----------
+    input_dim: int
+        Input dimension of environment - 2D squared or 3D cubed.
+    maze_dim: int
+        Maze dimensions with equal lengths in x, y, and z-direction.
+    n: int
+        Number of episodes for training.
+    size_pf: int
+        Size of platform.
+    spatial_cues: int
+        Factor that increases size of smell range surrounding platform
+    start_state: Union[List[int], None]
+        Starting state can either be given directly by the user or is random.
+
+    Returns
+    -------
+    G_history: List[float]
+        List containing all expected returns per episodes.
+    eps_history: List[float]
+        List containing the final epsilons of the agent.
+    """
+
+    # init DDQN-Agent
+    ddqn_agent = init_ddqn_agent(input_dims=input_dim)
+
+    # init empty lists to store results - expected returns and history of epsilon
     G_history = []
     eps_history = []
+
+    pos_pf = platform(dimensions=maze_dim, size=size_pf)
+    pos_smell = smell_range(dimensions=maze_dim, size=size_pf, spatial_cue=spatial_cues)
+
     for episode in range(n):
+        max_iterCnt = 1000
         terminal = False  # set terminal flag to false, to indicate that agent is not a terminal state
+        iterCnt = 0
         G = 0  # set expected return to zero
 
         # Initialize first starting state of the agent
         # two groups of agents: 1) fixed starting point and 2) random starting point
-        state = init_env(input_dims=input_dims, dim2=dim2, start_state=start_state)
-
+        state = init_starting_state(input_dim=input_dim, maze_dim=maze_dim, start_state=start_state)
+        Rewards = [0, 0]
         while not terminal and iterCnt < max_iterCnt:
+            print(f'Current Move: {iterCnt}')
             action = ddqn_agent.choose_action(state=state)
-            next_state, terminal = get_next_state(state=state, action=action)
-            reward = get_reward(state=state, action=action, next_state=next_state)
+
+            next_state, terminal = get_next_state(
+                state=state,
+                action=action,
+                maze_dim=maze_dim,
+                pos_pf=pos_pf)
+
+            reward, Rewards = get_reward(
+                state=state,
+                next_state=next_state,
+                platform=pos_pf,
+                smell_range=pos_smell,
+                Rewards=Rewards)
 
             # Store current transition in memory buffer
-            ddqn_agent.remember(state=state, action=action, reward=reward, next_state=next_state, terminal=terminal)
+            ddqn_agent.remember(
+                state=state,
+                action=action,
+                reward=reward,
+                next_state=next_state,
+                terminal=terminal)
 
             # Update next state to become state for next iteration of loop
             state = next_state
             ddqn_agent.learn()
             # Add reward to
             G += reward
-
+            iterCnt += 1
 
         G_history.append(G)
         eps_history.append(ddqn_agent.epsilon)
@@ -393,13 +470,22 @@ def execute_learning(input_dims, n, dim2=True, start_state = None):
 
 
 def main(argv):
-    input_dims = argv[1]  # input dimensions - 2 for 2D and 3 for 3D
-    n = argv[2]  # number of episodes
-    start_state = None  # or list for 2D [y_pos, x_pos] and 3D [y_pos, x_pos, z_pos]
-    G_history, eps_history = execute_learning(input_dims=input_dims, n=n, start_state=None)
+    n = int(argv[1])  # number of episodes
+    input_dims = int(argv[2])  # input dimensions - 2 for 2D and 3 for 3D
+    maze_dims = int(argv[3])  # input dimensions of squared or cubed environment - default 128
+    size_pf = int(argv[4])  # size of platform where goal is
+    spatial_cues = int(argv[5])  # smell range surrounding platform - factor of it
+
+    G_history, eps_history = execute_learning(
+        input_dim=input_dims,
+        maze_dim=maze_dims,
+        n=n,
+        size_pf=size_pf,
+        spatial_cues=spatial_cues,
+        start_state=None)  # or list for 2D [y_pos, x_pos] and 3D [y_pos, x_pos, z_pos]
 
     # We can plot the two returned variables above.
 
 
-if __name__ is '__main__':
+if __name__ == '__main__':
     main(sys.argv)
