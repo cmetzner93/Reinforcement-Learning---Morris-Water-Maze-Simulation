@@ -204,7 +204,7 @@ class DDQNAgent(object):
         self.epsilon_dec = epsilon_dec
         self.epsilon_min = epsilon_min
         self.batch_size = batch_size
-        self.model = fname
+        self.model_file = fname
         self.replace_target = replace_target
         self.memory = ReplayBuffer(
             max_size=memory_size,
