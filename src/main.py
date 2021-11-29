@@ -337,7 +337,6 @@ def init_ddqn_agent(input_dims: int, start_state: Tuple[List[int], bool]) -> ker
     -------
 
     """
-    print(start_state)
     if start_state is not None:
         start_s = 'fixed'
     else:
@@ -507,8 +506,6 @@ def main(argv):
 
     elif fix_starting_state == 1:
         start_state = None
-
-    print(start_state)
 
     G_history, eps_history, states_visited = execute_learning(
         input_dim=input_dims,
