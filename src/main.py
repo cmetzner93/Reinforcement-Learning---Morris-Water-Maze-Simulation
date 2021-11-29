@@ -414,7 +414,7 @@ def execute_learning(
     pos_smell = smell_range(dimensions=maze_dim, size=size_pf, spatial_cue=spatial_cues)
 
     for episode in range(n):
-        max_iterCnt = 100
+        max_iterCnt = 500
         terminal = False  # set terminal flag to false, to indicate that agent is not a terminal state
         iterCnt = 0
         G = 0  # set expected return to zero
@@ -465,7 +465,7 @@ def execute_learning(
         print(f'Episode {episode+1}, G: {G}, Average G: {avg_G}')
 
         # save model
-        if episode % 1 == 0 and episode > 0:
+        if episode % 10 == 0 and episode > 0:
             ddqn_agent.save_model()
 
     states_visited.append(states_visited_episode)
