@@ -10,7 +10,7 @@ import os
 
 from typing import List, Tuple
 
-
+# the following code was used from the reference above
 class ReplayBuffer(object):
     """
     Class object that stores the transitions
@@ -347,7 +347,7 @@ class DDQNAgent(object):
         if self.epsilon <= self.epsilon_min:
             self.update_network_parameters()
 
-
+#written by us
 def set_weights_3D_2D(model_2D, model_3D):
     weights_2D = model_2D.get_weights()
     weights_3D = model_3D.get_weights()

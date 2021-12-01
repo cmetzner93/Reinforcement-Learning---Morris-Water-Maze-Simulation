@@ -3,7 +3,8 @@ Title: Source code for double deep Q-learning using Pytorch and torchvision.
 Author: Christoph Metzner and Andrew Strick
 Date: 11/28/2021
 
-This is the main source code for running the morris water maze experiment.
+This is the main source code for running the morris water maze experiment. The whole code in this script was developed
+by either Andrew Strick or Christoph Metzner.
 """
 
 import sys
@@ -14,6 +15,7 @@ from typing import List, Tuple, Union
 from typing import TypeVar
 import matplotlib.pyplot as plt
 import pickle
+import time
 keras_sequential_model = TypeVar('keras.engine.sequential.Sequential')
 
 def platform(dimensions, size):
@@ -27,7 +29,7 @@ def platform(dimensions, size):
 def smell_range(dimensions, size, spatial_cue):
     
     dim_left = (dimensions/2) - (size * spatial_cue)
-    dim_right = (dimensions/2) - ((size - 1) * spatial_cue)
+    dim_right = (dimensions/2) - (size * spatial_cue - 1)
     
     smell_range = [dim_left, dim_right]
     return smell_range
@@ -118,7 +120,7 @@ def get_reward(state: List[int], next_state: List[int], platform: List[int], sme
         # check to see if next_state is in the terminal location
         #  checks if agent is in y range                    checks if agent is in x range
         if platform[0] <= next_state[0] <= platform[1] and platform[0] <= next_state[1] <= platform[1]:
-            return 100 + Rewards[0], Rewards  # reward for getting to the platform
+            return 500 + Rewards[0], Rewards  # reward for getting to the platform
 
         # check to see if the next_state is in the smell range
         # check if agent is in y range                              check if agent is in x range
@@ -132,12 +134,16 @@ def get_reward(state: List[int], next_state: List[int], platform: List[int], sme
                 # check to see if manhatten distance is smaller
                 if next_state_dis < state_dis:
                     # update the R_close_cheese value
+                    # including a cap since, sometimes the agent moved around in area and gradually increasing
+                    # the reward on purpose
                     Rewards[1] = Rewards[1] + 2
                     return Rewards[0] + Rewards[1], Rewards
                 # check to see if manhatten distance is larger
                 elif next_state_dis > state_dis:
                     # update the R_close_cheese_value
-                    Rewards[1] = Rewards[1] - 2
+                    # some issue with computing the reward properly cause the agent to received large negative rewards
+                    Rewards[1] = max(Rewards[1] - 2, 0)
+
                     # Rewards[0] here since we are moving away from the platform
                     return Rewards[0] + Rewards[1], Rewards
                 elif next_state_dis == state_dis:
@@ -153,7 +159,7 @@ def get_reward(state: List[int], next_state: List[int], platform: List[int], sme
         if platform[0] <= next_state[0] <= platform[1] \
             and platform[0] <= next_state[1] <= platform[1] \
             and platform[0] <= next_state[2] <= platform[1]:
-                return 100, Rewards  # reward for getting to the cube or the platform
+                return 500, Rewards  # reward for getting to the cube or the platform
 
         # check to see if the next_state is in the smell range
         elif smell_range[0] <= next_state[0] <= smell_range[1] \
@@ -174,7 +180,7 @@ def get_reward(state: List[int], next_state: List[int], platform: List[int], sme
                     # check to see if manhatten distance is larger
                     elif next_state_dis > state_dis:
                         # update the R_close_cheese_value
-                        Rewards[1] = Rewards[1] - 2
+                        Rewards[1] = max(Rewards[1] - 2, 0)
                         # Rewards[0] here since we are moving away from the cube
                         return Rewards[0], Rewards
                     else:
@@ -325,7 +331,7 @@ def init_starting_state(input_dim: int, maze_dim: int, start_state: List[int]) -
     return state
 
 
-def init_ddqn_agent(input_dims: int, start_state: Tuple[List[int], bool]) -> keras_sequential_model:
+def init_ddqn_agent(input_dims: int, start_state: Tuple[List[int], bool], maze_dim: int) -> keras_sequential_model:
     """
     Function to initialize double deep Q-learning agent.
     Parameters
@@ -348,10 +354,10 @@ def init_ddqn_agent(input_dims: int, start_state: Tuple[List[int], bool]) -> ker
                                epsilon=1.0,
                                batch_size=64,
                                input_dims=input_dims,
-                               fname=f'ddqn_model_2D_{start_s}.h5')
+                               fname=f'ddqn_model_2D_{maze_dim}_{start_s}.h5')
 
     elif input_dims == 3:  # init ddqn_agent in 3D with the x and y weights of the 2D agent
-        ddqn_agent2D = keras.models.load_model(f'ddqn_model_2D_{start_s}.h5')
+        ddqn_agent2D = keras.models.load_model(f'ddqn_model_2D_{maze_dim}_{start_s}.h5')
 
         ddqn_agent = DDQNAgent(alpha=0.0005,
                                gamma=0.99,
@@ -359,7 +365,7 @@ def init_ddqn_agent(input_dims: int, start_state: Tuple[List[int], bool]) -> ker
                                epsilon=1.0,
                                batch_size=64,
                                input_dims=input_dims,
-                               fname=f'ddqn_model_3D_{start_s}.h5')
+                               fname=f'ddqn_model_3D_{maze_dim}_{start_s}.h5')
 
         # Setting the weights of agent trained in 2D equal to the untrained weights of agent in 3D
         ddqn_agent.q_val = set_weights_3D_2D(ddqn_agent2D, ddqn_agent.q_eval)
@@ -403,7 +409,7 @@ def execute_learning(
     """
 
     # init DDQN-Agent
-    ddqn_agent = init_ddqn_agent(input_dims=input_dim, start_state=start_state)
+    ddqn_agent = init_ddqn_agent(input_dims=input_dim, start_state=start_state, maze_dim=maze_dim)
 
     # init empty lists to store results - expected returns and history of epsilon
     G_history = []
@@ -425,7 +431,7 @@ def execute_learning(
         Rewards = [0, 0]
         states_visited_episode = []
         while not terminal and iterCnt < max_iterCnt:
-            print(f'Current Move: {iterCnt}')
+            #print(f'Current Move: {iterCnt}')
             action = ddqn_agent.choose_action(state=state)
 
             next_state, terminal = get_next_state(
@@ -435,13 +441,15 @@ def execute_learning(
                 pos_pf=pos_pf)
 
             states_visited_episode.append(next_state)
-
-            reward, Rewards = get_reward(
-                state=state,
-                next_state=next_state,
-                platform=pos_pf,
-                smell_range=pos_smell,
-                Rewards=Rewards)
+            if iterCnt == max_iterCnt-1:
+                reward = -1000
+            else:
+                reward, Rewards = get_reward(
+                    state=state,
+                    next_state=next_state,
+                    platform=pos_pf,
+                    smell_range=pos_smell,
+                    Rewards=Rewards)
 
             # Store current transition in memory buffer
             ddqn_agent.remember(
@@ -506,7 +514,7 @@ def main(argv):
 
     elif fix_starting_state == 1:
         start_state = None
-
+    begin = time.time()
     G_history, eps_history, states_visited = execute_learning(
         input_dim=input_dims,
         maze_dim=maze_dims,
@@ -514,16 +522,23 @@ def main(argv):
         size_pf=size_pf,
         spatial_cues=spatial_cues,
         start_state=start_state)  # or list for 2D [y_pos, x_pos] and 3D [y_pos, x_pos, z_pos]
+    end = time.time()
 
+    print(f'Training time: {end-begin} seconds.')
     # save results for later use with pickle
-    with open(f'results_expected_return_{argv[2]}_{argv[6]}.pkl', 'wb') as pickle_g:
+    with open(f'results_expected_return_{argv[1]}_{argv[2]}_{argv[6]}.pkl', 'wb') as pickle_g:
         pickle.dump(G_history, pickle_g)
 
-    with open(f'results_eps_{argv[2]}_{argv[6]}.pkl', 'wb') as pickle_eps:
+    with open(f'results_eps_{argv[1]}_{argv[2]}_{argv[6]}.pkl', 'wb') as pickle_eps:
         pickle.dump(G_history, pickle_eps)
 
-    with open(f'results_states_visited_{argv[2]}_{argv[6]}.pkl', 'wb') as pickle_states_visited:
+    with open(f'results_states_visited_{argv[1]}_{argv[2]}_{argv[6]}.pkl', 'wb') as pickle_states_visited:
         pickle.dump(G_history, pickle_states_visited)
 
 if __name__ == '__main__':
-    main(sys.argv)
+    simulations = [[0, 300, 2, 12, 2, 2, 0],
+                   [0, 300, 2, 12, 2, 2, 1],
+                   [0, 500, 3, 12, 4, 4, 0],
+                   [0, 500, 3, 12, 4, 4, 1]]
+    for sim in simulations:
+        main(argv=sim)
