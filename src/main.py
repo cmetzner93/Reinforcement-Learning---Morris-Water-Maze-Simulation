@@ -169,7 +169,9 @@ def get_reward(state: List[int], next_state: List[int], platform: List[int], sme
                     # including a cap since, sometimes the agent moved around in area and gradually increasing
                     # the reward on purpose
                     
-                    # trying this out
+                    # Rewards [1] will increase only if the agent is getting closer to the target platform or cube
+                    # Rewards [1] will linearly increase by a factor of two for each step closer the agent gets
+                    # to the target platform or cube.
                     Rewards[1] = ((smell_range[1] - center) - next_state_dis) * 2
                     return Rewards[0] + Rewards[1], Rewards
                 # check to see if manhatten distance is larger
@@ -209,8 +211,14 @@ def get_reward(state: List[int], next_state: List[int], platform: List[int], sme
                     # check to see if manhatten distance is smaller
                     if next_state_dis < state_dis:
                         # update the R_close_cheese value
-                        Rewards[1] = Rewards[1] + 2
-                        return Rewards[1] + Rewards[0], Rewards
+                        # including a cap since, sometimes the agent moved around in area and gradually increasing
+                        # the reward on purpose
+                        
+                        # Rewards [1] will increase only if the agent is getting closer to the target platform or cube
+                        # Rewards [1] will linearly increase by a factor of two for each step closer the agent gets
+                        # to the target platform or cube.
+                        Rewards[1] = ((smell_range[1] - center) - next_state_dis) * 2
+                        return Rewards[0] + Rewards[1], Rewards
                     # check to see if manhatten distance is larger
                     elif next_state_dis > state_dis:
                         # update the R_close_cheese_value
@@ -570,9 +578,7 @@ def main(argv):
         pickle.dump(G_history, pickle_states_visited)
 
 if __name__ == '__main__':
-    simulations = [[0, 300, 2, 12, 2, 8, 0],
-                   [0, 300, 2, 12, 2, 8, 1],
-                   [0, 100, 3, 12, 4, 8, 0],
-                   [0, 100, 3, 12, 4, 8, 1]]
+    simulations = [[0, 500, 2, 12, 2, 8, 0],
+                   [0, 500, 2, 12, 2, 8, 1]]
     for sim in simulations:
         main(argv=sim)
