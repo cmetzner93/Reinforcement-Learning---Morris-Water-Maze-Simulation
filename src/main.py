@@ -18,7 +18,22 @@ import pickle
 import time
 keras_sequential_model = TypeVar('keras.engine.sequential.Sequential')
 
-def platform(dimensions, size):
+def platform(dimensions: int, size: int) -> List[int]:
+    """
+    Parameters
+    ----------
+    dimensions : int
+        Length of the dimensions for the square or cubed environment
+    size : int
+        The size of the platform dimensions
+
+    Returns
+    -------
+    platform : List[int]
+        The lower followed by the upper index locations of the platform in a list
+        platform[0] == Lower index number of platform
+        platform[1] == Upper index number of platform
+    """
     dim_left = (dimensions/2) - size
     dim_right = (dimensions/2) - (size - 1)
     
@@ -26,8 +41,25 @@ def platform(dimensions, size):
     return platform
 
 
-def smell_range(dimensions, size, spatial_cue):
-    
+def smell_range(dimensions: int, size: int, spatial_cue: int) -> List[int]:
+    """
+    Parameters
+    ----------
+    dimensions : int
+        Length of the dimensions for the square or cubed environment
+    size : int
+        The size of the platform dimensions
+    spatial_cue : int
+        The coeffient multiply of how big the lower and upper limits of the 
+        smell range will be.
+
+    Returns
+    -------
+    smell_range : List[int]
+        The lower followed by the upper index locations of the smell-range in a list
+        smell_range[0] == Lower index number of smell_range
+        smell_range[1] == Upper index number of smell_range
+    """
     dim_left = (dimensions/2) - (size * spatial_cue)
     dim_right = (dimensions/2) - (size * spatial_cue - 1)
     
@@ -136,13 +168,15 @@ def get_reward(state: List[int], next_state: List[int], platform: List[int], sme
                     # update the R_close_cheese value
                     # including a cap since, sometimes the agent moved around in area and gradually increasing
                     # the reward on purpose
-                    Rewards[1] = Rewards[1] + 2
+                    
+                    # trying this out
+                    Rewards[1] = ((smell_range[1] - center) - next_state_dis) * 2
                     return Rewards[0] + Rewards[1], Rewards
                 # check to see if manhatten distance is larger
                 elif next_state_dis > state_dis:
                     # update the R_close_cheese_value
                     # some issue with computing the reward properly cause the agent to received large negative rewards
-                    Rewards[1] = max(Rewards[1] - 2, 0)
+                    #Rewards[1] = max(Rewards[1] - 2, 0)
 
                     # Rewards[0] here since we are moving away from the platform
                     return Rewards[0] + Rewards[1], Rewards
@@ -536,9 +570,9 @@ def main(argv):
         pickle.dump(G_history, pickle_states_visited)
 
 if __name__ == '__main__':
-    simulations = [[0, 300, 2, 12, 2, 2, 0],
-                   [0, 300, 2, 12, 2, 2, 1],
-                   [0, 500, 3, 12, 4, 4, 0],
-                   [0, 500, 3, 12, 4, 4, 1]]
+    simulations = [[0, 300, 2, 12, 2, 8, 0],
+                   [0, 300, 2, 12, 2, 8, 1],
+                   [0, 100, 3, 12, 4, 8, 0],
+                   [0, 100, 3, 12, 4, 8, 1]]
     for sim in simulations:
         main(argv=sim)
