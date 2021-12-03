@@ -1,7 +1,7 @@
 """
 Title: Source code for double deep Q-learning using Pytorch and torchvision.
 Author: Christoph Metzner and Andrew Strick
-Date: 11/28/2021
+Date: 12/3/2021
 
 This is the main source code for running the morris water maze experiment. The whole code in this script was developed
 by either Andrew Strick or Christoph Metzner.
