@@ -523,21 +523,58 @@ def execute_learning(
     return G_history, eps_history, states_visited
 
 
-def plot_total_returns(total_returns: List[int], exp_num: int):
-    x = np.linspace(1, len(total_returns), len(total_returns))
+def plot_results(n: str, input_dim: str, fix_starting_state: str, exp_return: bool = True) -> None:
+    """
+    Function to plot expected return/epsilon per epoch for n epochs.
+    Parameters
+    ----------
+    n : str
+        String indicating number of epochs.
+    input_dim : str
+        String indicating dimensions of the environment.
+    fix_starting_state : str
+        String indicating if experiment had fixed starting state or was random.
+    exp_return: bool
+        Expression indicating if expected return or epsilon values are plotted
+
+    Returns
+    -------
+    None
+    """
+
+    if exp_return:
+        file_name = f'results_expected_return_{n}_{input_dim}_{fix_starting_state}.pkl'
+    else:
+        file_name = f'results_eps_{n}_{input_dim}_{fix_starting_state}.pkl'
+
+    with open(file_name, 'rb') as f:
+        res = pickle.load(f)
+
 
     plt.figure(figsize=(10, 8))
 
-    plt.plot(x, total_returns)
-    plt.title(f'Total Return vs Epoch')
-    plt.xlabel('Epochs', fontsize=14)
-    plt.ylabel('Total Return per Epoch', fontsize=14)
-    plt.xticks(fontsize=12)
-    plt.yticks(fontsize=12)
+    x = np.linspace(1, len(res), len(res))
+    plt.plot(x, res)
 
-    plt.legend(fontsize=12)
+    if exp_return:
+        plt.title(f'Total Return vs Epoch')
+        plt.xlabel('Epochs', fontsize=14)
+        plt.ylabel('Total Return per Epoch', fontsize=14)
+        plt.xticks(fontsize=12)
+        plt.yticks(fontsize=12)
+        plt.legend(fontsize=12)
+        plt.savefig(f'results_expected_return_{n}_{input_dim}_{fix_starting_state}.png')
+    else:
+        plt.title(f'Epsilons vs Epoch')
+        plt.xlabel('Epochs', fontsize=14)
+        plt.ylabel('Final Epsilon at End of Epoch', fontsize=14)
+        plt.xticks(fontsize=12)
+        plt.yticks(fontsize=12)
+        plt.legend(fontsize=12)
+        plt.savefig(f'results_eps_{n}_{input_dim}_{fix_starting_state}.png')
 
-    plt.savefig(f'Total Return vs Epoch {exp_num}.png')
+    plt.show()
+
 
 
 def main(argv):
@@ -577,8 +614,16 @@ def main(argv):
     with open(f'results_states_visited_{argv[1]}_{argv[2]}_{argv[6]}.pkl', 'wb') as pickle_states_visited:
         pickle.dump(states_visited, pickle_states_visited)
 
+    ##########################
+    #### Perform Analysis ####
+    # Expected Return vs Epochs
+    plot_results(n=argv[1], input_dim=argv[2], fix_starting_state=argv[6], exp_return=True)
+
+
 if __name__ == '__main__':
-    simulations = [[0, 500, 2, 12, 2, 2, 0],
-                   [0, 500, 2, 12, 2, 2, 1]]
-    for sim in simulations:
-        main(argv=sim)
+    main(sys.argv)
+
+    #simulations = [[0, 500, 3, 12, 4, 4, 1]]
+    #for sim in simulations:
+    #    main(argv=sim)
+    # [0, 500, 3, 12, 4, 4, 0],
