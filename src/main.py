@@ -518,7 +518,7 @@ def execute_learning(
         if episode % 10 == 0 and episode > 0:
             ddqn_agent.save_model()
 
-    states_visited.append(states_visited_episode)
+        states_visited.append(states_visited_episode)
 
     return G_history, eps_history, states_visited
 
@@ -603,6 +603,8 @@ def main(argv):
         start_state=start_state)  # or list for 2D [y_pos, x_pos] and 3D [y_pos, x_pos, z_pos]
     end = time.time()
 
+    
+
     print(f'Training time: {end-begin} seconds.')
     # save results for later use with pickle
     with open(f'results_expected_return_{argv[1]}_{argv[2]}_{argv[6]}.pkl', 'wb') as pickle_g:
@@ -618,6 +620,11 @@ def main(argv):
     #### Perform Analysis ####
     # Expected Return vs Epochs
     plot_results(n=argv[1], input_dim=argv[2], fix_starting_state=argv[6], exp_return=True)
+
+    with open(f'results_states_visited_{argv[1]}_{argv[2]}_{argv[6]}.pkl', 'rb') as f:
+        res = pickle.load(f)
+
+    print(res)
 
 
 if __name__ == '__main__':
