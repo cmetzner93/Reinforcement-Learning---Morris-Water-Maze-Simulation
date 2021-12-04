@@ -572,10 +572,10 @@ def main(argv):
         pickle.dump(G_history, pickle_g)
 
     with open(f'results_eps_{argv[1]}_{argv[2]}_{argv[6]}.pkl', 'wb') as pickle_eps:
-        pickle.dump(G_history, pickle_eps)
+        pickle.dump(eps_history, pickle_eps)
 
     with open(f'results_states_visited_{argv[1]}_{argv[2]}_{argv[6]}.pkl', 'wb') as pickle_states_visited:
-        pickle.dump(G_history, pickle_states_visited)
+        pickle.dump(states_visited, pickle_states_visited)
 
 if __name__ == '__main__':
     simulations = [[0, 500, 2, 12, 2, 8, 0],
