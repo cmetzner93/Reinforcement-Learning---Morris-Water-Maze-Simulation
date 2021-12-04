@@ -578,7 +578,7 @@ def main(argv):
         pickle.dump(states_visited, pickle_states_visited)
 
 if __name__ == '__main__':
-    simulations = [[0, 500, 2, 12, 2, 8, 0],
-                   [0, 500, 2, 12, 2, 8, 1]]
+    simulations = [[0, 500, 2, 12, 2, 2, 0],
+                   [0, 500, 2, 12, 2, 2, 1]]
     for sim in simulations:
         main(argv=sim)
