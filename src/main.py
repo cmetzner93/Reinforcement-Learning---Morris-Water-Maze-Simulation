@@ -2,7 +2,6 @@
 Title: Source code for double deep Q-learning using Pytorch and torchvision.
 Author: Christoph Metzner and Andrew Strick
 Date: 12/3/2021
-
 This is the main source code for running the morris water maze experiment. The whole code in this script was developed
 by either Andrew Strick or Christoph Metzner.
 """
@@ -16,6 +15,7 @@ from typing import TypeVar
 import matplotlib.pyplot as plt
 import pickle
 import time
+import pandas as pd
 keras_sequential_model = TypeVar('keras.engine.sequential.Sequential')
 
 def platform(dimensions: int, size: int) -> List[int]:
@@ -26,7 +26,6 @@ def platform(dimensions: int, size: int) -> List[int]:
         Length of the dimensions for the square or cubed environment
     size : int
         The size of the platform dimensions
-
     Returns
     -------
     platform : List[int]
@@ -52,7 +51,6 @@ def smell_range(dimensions: int, size: int, spatial_cue: int) -> List[int]:
     spatial_cue : int
         The coeffient multiply of how big the lower and upper limits of the 
         smell range will be.
-
     Returns
     -------
     smell_range : List[int]
@@ -73,7 +71,6 @@ def center_location(platform: List[int]) -> int:
     ----------
     platform : List[int]
        Input of the lower and upper limits of the platform
-
     Returns
     -------
     center_loc : int
@@ -91,7 +88,6 @@ def manhatten_dis_center(state: List[int], center: int) -> float:
         The location of the state given by [row, column, z]
     center : int
         The center of the platform or cube
-
     Returns
     -------
     man_dis : float 
@@ -252,10 +248,8 @@ def get_next_state(
         Length of the dimensions for the square or cubed environment
     pos_pf: List[int]
         containing the corner positions of the platform
-
     Returns
     -------
-
     """
     next_state = state.copy()
 
@@ -311,14 +305,12 @@ def get_next_state(
 def get_terminal(next_state: List[int], pos_pf: List[int]) -> bool:
     """
     This function checks whether agent is in a terminal state or not.
-
     Parameters
     ----------
     next_state: List[int]
         List containing x, y, and/or z-positions of agent (rat) for next state.
     pos_pf: List[int]
         List containing x1, x2, y1, y2, and/or z1, z2: Shape of platform in 2D is a quadrant and in 3D a cube.
-
     Returns
     -------
     bool
@@ -380,10 +372,8 @@ def init_ddqn_agent(input_dims: int, start_state: Tuple[List[int], bool], maze_d
     ----------
     input_dims: int
     start_state: Tuple[List[int], bool]
-
     Returns
     -------
-
     """
     if start_state is not None:
         start_s = 'fixed'
@@ -426,7 +416,6 @@ def execute_learning(
 
     """
     Function that executes learning of agent in environment.
-
     Parameters
     ----------
     input_dim: int
@@ -441,7 +430,6 @@ def execute_learning(
         Factor that increases size of smell range surrounding platform
     start_state: Union[List[int], None]
         Starting state can either be given directly by the user or is random.
-
     Returns
     -------
     G_history: List[float]
@@ -536,7 +524,6 @@ def plot_results(n: str, input_dim: str, fix_starting_state: str, exp_return: bo
         String indicating if experiment had fixed starting state or was random.
     exp_return: bool
         Expression indicating if expected return or epsilon values are plotted
-
     Returns
     -------
     None
@@ -575,6 +562,41 @@ def plot_results(n: str, input_dim: str, fix_starting_state: str, exp_return: bo
 
     plt.show()
 
+def plot_travel(filename: str) -> None:
+    """
+    Parameters
+    ----------
+    filename : str
+        Input in the pickled results of the episodes traveled by the agent
+
+    Returns
+    -------
+        A density plot of the states more or less often traveled by the agent
+    """
+    # put your file name here
+    results_states_visited = pd.read_pickle(r'{filename}')
+    
+    x = []
+    y = []
+    z = []
+    
+    # loops through the pickle file and isolates each x and y value
+    i = 0
+    while i < len(results_states_visited):
+        j = 0
+        while j < len(results_states_visited[i]):
+            x.append(results_states_visited[i][j][1])
+            y.append(results_states_visited[i][j][0])
+            z.append([results_states_visited[i][j][0], results_states_visited[i][j][1]])
+            
+            j = j + 1
+        i = i + 1
+    
+
+    # plots a 2-D histogram of the plot
+    h = plt.hist2d(x, y)
+    plt.colorbar(h[3])
+    plt.show()
 
 
 def main(argv):
