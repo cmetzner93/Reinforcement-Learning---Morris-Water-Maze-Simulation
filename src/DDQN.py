@@ -347,7 +347,8 @@ class DDQNAgent(object):
         if self.epsilon <= self.epsilon_min:
             self.update_network_parameters()
 
-#written by us
+
+# following function written by Christoph Metzner
 def set_weights_3D_2D(model_2D, model_3D):
     weights_2D = model_2D.get_weights()
     weights_3D = model_3D.get_weights()
@@ -366,9 +367,7 @@ def set_weights_3D_2D(model_2D, model_3D):
     weights_3D[2] = weights_2D[2]
     weights_3D[3] = weights_2D[3]
     weights_3D[4][:, :4] = weights_2D[4]   # set the first weights for the first four agents equal
-    #### think about the last layer
 
     model_3D.set_weights(weights_3D)
 
     return model_3D
-

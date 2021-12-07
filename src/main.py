@@ -18,6 +18,7 @@ import time
 import pandas as pd
 keras_sequential_model = TypeVar('keras.engine.sequential.Sequential')
 
+
 def platform(dimensions: int, size: int) -> List[int]:
     """
     Parameters
@@ -35,9 +36,8 @@ def platform(dimensions: int, size: int) -> List[int]:
     """
     dim_left = (dimensions/2) - size
     dim_right = (dimensions/2) - (size - 1)
-    
-    platform = [dim_left, dim_right]
-    return platform
+
+    return [dim_left, dim_right]
 
 
 def smell_range(dimensions: int, size: int, spatial_cue: int) -> List[int]:
@@ -49,7 +49,7 @@ def smell_range(dimensions: int, size: int, spatial_cue: int) -> List[int]:
     size : int
         The size of the platform dimensions
     spatial_cue : int
-        The coeffient multiply of how big the lower and upper limits of the 
+        The coefficient multiply of how big the lower and upper limits of the
         smell range will be.
     Returns
     -------
@@ -60,9 +60,8 @@ def smell_range(dimensions: int, size: int, spatial_cue: int) -> List[int]:
     """
     dim_left = (dimensions/2) - (size * spatial_cue)
     dim_right = (dimensions/2) - (size * spatial_cue - 1)
-    
-    smell_range = [dim_left, dim_right]
-    return smell_range
+
+    return [dim_left, dim_right]
 
 
 def center_location(platform: List[int]) -> int:
@@ -74,7 +73,7 @@ def center_location(platform: List[int]) -> int:
     Returns
     -------
     center_loc : int
-        A single point location for the center of the cube/platorm
+        A single point location for the center of the cube/platform
     """
     center = (platform[1] - platform[0]) / 2
     return center
@@ -238,18 +237,21 @@ def get_next_state(
     Function that computes the next state (i.e., position of the agent) given current state and action of agent.
     Parameters
     ----------
-    state: List[int]
+    state : List[int]
         Containing the x, y, and/or z-positions of the agent in environment.
-    action: int
+    action : int
         The choice the agent made in the direction to move
         2D has 4 actions (north: 0, south: 1, east: 2, west: 3)
         3D has 6 actions (north: 0, south: 1, east: 2, west: 3, up: 4, down: 5)
-    maze_dim: int
+    maze_dim : int
         Length of the dimensions for the square or cubed environment
-    pos_pf: List[int]
+    pos_pf : List[int]
         containing the corner positions of the platform
     Returns
     -------
+    Tuple[List[int], bool]
+        A tuple containing the next state of the environment stored as a list with integers and a boolean expression
+        indicating the terminal state (True: Terminal / False: Not Terminal)
     """
     next_state = state.copy()
 
@@ -307,14 +309,14 @@ def get_terminal(next_state: List[int], pos_pf: List[int]) -> bool:
     This function checks whether agent is in a terminal state or not.
     Parameters
     ----------
-    next_state: List[int]
+    next_state : List[int]
         List containing x, y, and/or z-positions of agent (rat) for next state.
-    pos_pf: List[int]
+    pos_pf : List[int]
         List containing x1, x2, y1, y2, and/or z1, z2: Shape of platform in 2D is a quadrant and in 3D a cube.
     Returns
     -------
     bool
-        Expression indicating whether episode is in a terminal state or not.
+        Expression indicating whether episode is in a terminal state or not. (True: Terminal / False: Terminal)
     """
     pos_x_agent = next_state[0]
     pos_y_agent = next_state[1]
@@ -370,10 +372,12 @@ def init_ddqn_agent(input_dims: int, start_state: Tuple[List[int], bool], maze_d
     Function to initialize double deep Q-learning agent.
     Parameters
     ----------
-    input_dims: int
-    start_state: Tuple[List[int], bool]
+    input_dims : int
+    start_state : Tuple[List[int], bool]
     Returns
     -------
+    keras_sequential_model
+        A keras sequential model object, i.e., a deep neural network
     """
     if start_state is not None:
         start_s = 'fixed'
@@ -418,23 +422,23 @@ def execute_learning(
     Function that executes learning of agent in environment.
     Parameters
     ----------
-    input_dim: int
+    input_dim : int
         Input dimension of environment - 2D squared or 3D cubed.
-    maze_dim: int
+    maze_dim : int
         Maze dimensions with equal lengths in x, y, and z-direction.
-    n: int
+    n : int
         Number of episodes for training.
-    size_pf: int
+    size_pf : int
         Size of platform.
-    spatial_cues: int
+    spatial_cues : int
         Factor that increases size of smell range surrounding platform
-    start_state: Union[List[int], None]
+    start_state : Union[List[int], None]
         Starting state can either be given directly by the user or is random.
     Returns
     -------
-    G_history: List[float]
+    G_history : List[float]
         List containing all expected returns per episodes.
-    eps_history: List[float]
+    eps_history : List[float]
         List containing the final epsilons of the agent.
     """
 
@@ -446,31 +450,40 @@ def execute_learning(
     eps_history = []
     states_visited = []
 
+    # init position of platform (pos_pf) and spatial cue area (pos_smell)
     pos_pf = platform(dimensions=maze_dim, size=size_pf)
     pos_smell = smell_range(dimensions=maze_dim, size=size_pf, spatial_cue=spatial_cues)
 
+    # Loop through n episodes
     for episode in range(n):
-        max_iterCnt = 500
+        max_iterCnt = 500  # Number of maximum allowed moves per episode
         terminal = False  # set terminal flag to false, to indicate that agent is not a terminal state
-        iterCnt = 0
-        G = 0  # set expected return to zero
+
+        iterCnt = 0  # init iteration counter to 0
+        G = 0  # init expected return to be 0
 
         # Initialize first starting state of the agent
         # two groups of agents: 1) fixed starting point and 2) random starting point
         state = init_starting_state(input_dim=input_dim, maze_dim=maze_dim, start_state=start_state)
-        Rewards = [0, 0]
-        states_visited_episode = []
+        Rewards = [0, 0]  # init reward structure to be 0; List required to keep track of previous and current reward
+        states_visited_episode = []  # init list to store visited states in current episode
         while not terminal and iterCnt < max_iterCnt:
-            #print(f'Current Move: {iterCnt}')
+            print(iterCnt)
+            # choose action based on current state based on epsilon-greedy policy
             action = ddqn_agent.choose_action(state=state)
 
+            # Get information about next state and whether it is terminal (agent moved on platform) or not.
             next_state, terminal = get_next_state(
                 state=state,
                 action=action,
                 maze_dim=maze_dim,
                 pos_pf=pos_pf)
 
+            # append next state to list to keep track of trajectory
             states_visited_episode.append(next_state)
+
+            # if all moves per episode are exhausted, the agent receives a large negative reward otherwise get reward
+            # for move and state.
             if iterCnt == max_iterCnt-1:
                 reward = -1000
             else:
@@ -481,7 +494,7 @@ def execute_learning(
                     smell_range=pos_smell,
                     Rewards=Rewards)
 
-            # Store current transition in memory buffer
+            # Store current transition information in memory buffer for training the deep neural network
             ddqn_agent.remember(
                 state=state,
                 action=action,
@@ -496,9 +509,11 @@ def execute_learning(
             G += reward
             iterCnt += 1
 
+        #  Append total expected return G for that episode to list and keep track for visualization
         G_history.append(G)
         eps_history.append(ddqn_agent.epsilon)
 
+        # Print progress and see if learning actually takes place
         avg_G = np.mean(G_history[max(0, episode-100):(episode+100)])
         print(f'Episode {episode+1}, G: {G}, Average G: {avg_G}')
 
@@ -537,7 +552,6 @@ def plot_results(n: str, input_dim: str, fix_starting_state: str, exp_return: bo
     with open(file_name, 'rb') as f:
         res = pickle.load(f)
 
-
     plt.figure(figsize=(10, 8))
 
     x = np.linspace(1, len(res), len(res))
@@ -560,7 +574,6 @@ def plot_results(n: str, input_dim: str, fix_starting_state: str, exp_return: bo
         plt.legend(fontsize=12)
         plt.savefig(f'results_eps_{n}_{input_dim}_{fix_starting_state}.png')
 
-    plt.show()
 
 def plot_travel(filename: str) -> None:
     """
@@ -591,12 +604,10 @@ def plot_travel(filename: str) -> None:
             
             j = j + 1
         i = i + 1
-    
 
     # plots a 2-D histogram of the plot
     h = plt.hist2d(x, y)
     plt.colorbar(h[3])
-    plt.show()
 
 
 def main(argv):
@@ -625,8 +636,6 @@ def main(argv):
         start_state=start_state)  # or list for 2D [y_pos, x_pos] and 3D [y_pos, x_pos, z_pos]
     end = time.time()
 
-    
-
     print(f'Training time: {end-begin} seconds.')
     # save results for later use with pickle
     with open(f'results_expected_return_{argv[1]}_{argv[2]}_{argv[6]}.pkl', 'wb') as pickle_g:
@@ -646,13 +655,6 @@ def main(argv):
     with open(f'results_states_visited_{argv[1]}_{argv[2]}_{argv[6]}.pkl', 'rb') as f:
         res = pickle.load(f)
 
-    print(res)
-
 
 if __name__ == '__main__':
     main(sys.argv)
-
-    #simulations = [[0, 500, 3, 12, 4, 4, 1]]
-    #for sim in simulations:
-    #    main(argv=sim)
-    # [0, 500, 3, 12, 4, 4, 0],
